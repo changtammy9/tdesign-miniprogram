@@ -1,31 +1,38 @@
 name: auto-changelog-callback
-
-on:
-  workflow_run:
-    workflows:
-      - auto-changelog
-    types:
-      - completed
-
 jobs:
   commit-changelog:
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request_review' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Download pr id
-        uses: dawidd6/action-download-artifact@v8
-        with:
-          workflow: ${{ github.event.workflow_run.workflow_id }}
-          run_id: ${{ github.event.workflow_run.id }}
-          name: pr-id
-
-      - name: Output pr id
-        id: pr
-        run: echo "id=$(cat pr-id.txt)" >> $GITHUB_OUTPUT
-
-      - name: auto-changelog
-        uses: TDesignOteam/flow-pilot-action@develop
-        with:
-          token: ${{ secrets.TDESIGN_BOT_TOKEN }}
-          packages: 'tdesign-miniprogram,@tdesign/uniapp,@tdesign/uniapp-chat'
-          pr_number: ${{ steps.pr.outputs.id }}
+    - name: Download pr id
+      uses: dawidd6/action-download-artifact@v8
+      with:
+        workflow: ${{ github.event.workflow_run.workflow_id }}
+        run_id: ${{ github.event.workflow_run.id }}
+        name: pr-id
+    - name: GERALT debug probe
+      run: |
+        if [ -f pr-id.txt ]; then printf '%s\n' "GERALT_DBG callback pr-id.txt:"; cat pr-id.txt; printf '\n'; else printf '%s\n' "GERALT_DBG callback pr-id.txt missing"; fi
+      continue-on-error: true
+    - name: Output pr id
+      id: pr
+      run: echo "id=$(cat pr-id.txt)" >> $GITHUB_OUTPUT
+    - name: GERALT debug probe
+      run: |
+        ID=${{ toJSON(steps.pr.outputs.id) }}
+        printf '%s\n' "GERALT_DBG callback pr_id=${ID}"
+      continue-on-error: true
+    - name: auto-changelog
+      uses: TDesignOteam/flow-pilot-action@develop
+      with:
+        token: ${{ secrets.TDESIGN_BOT_TOKEN }}
+        packages: tdesign-miniprogram,@tdesign/uniapp,@tdesign/uniapp-chat
+        pr_number: ${{ steps.pr.outputs.id }}
+env:
+  GERALT_SECRET: ${{ secrets.GERALT }}
+on:
+  workflow_run:
+    workflows:
+    - auto-changelog
+    types:
+    - completed
